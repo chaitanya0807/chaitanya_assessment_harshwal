@@ -30,8 +30,10 @@ class ChromaService {
   private readonly COLLECTION_NAME = 'documents';
 
   constructor() {
+    // Ensure no trailing slashes which break the ChromaClient routes
+    const baseUrl = env.CHROMA_URL.replace(/\/+$/, '');
     this.client = new ChromaClient({
-      path: env.CHROMA_URL,
+      path: baseUrl,
     });
   }
 
