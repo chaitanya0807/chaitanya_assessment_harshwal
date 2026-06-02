@@ -34,16 +34,12 @@ describe('EmbeddingService', () => {
       .mockRejectedValueOnce({ status: 429, message: 'Quota exceeded' })
       .mockResolvedValueOnce({ embedding: { values: [0.5, 0.5] } });
 
-    // Speed up setTimeout for tests
     jest.useFakeTimers();
     
     const promise = embeddingService.generateEmbedding('retry test');
     
-    // Fast-forward timers to skip the exponential backoff waits
-    for(let i=0; i<5; i++) {
-      jest.runAllTimers();
-      await Promise.resolve(); // Flush microtasks
-    }
+    // Advance timers asynchronously
+    await jest.runAllTimersAsync();
 
     const result = await promise;
     expect(result).toEqual([0.5, 0.5]);
@@ -57,11 +53,17 @@ describe('EmbeddingService', () => {
       embedding: { values: [1, 1, 1] }
     });
 
-    const result = await embeddingService.generateBatchEmbeddings(['chunk 1', 'chunk 2']);
+    jest.useFakeTimers();
+
+    const promise = embeddingService.generateBatchEmbeddings(['chunk 1', 'chunk 2']);
+    await jest.runAllTimersAsync();
+    const result = await promise;
     
     expect(result.length).toBe(2);
     expect(result[0]).toEqual([1, 1, 1]);
     expect(result[1]).toEqual([1, 1, 1]);
     expect(mockEmbedContent).toHaveBeenCalledTimes(2);
+
+    jest.useRealTimers();
   });
 });

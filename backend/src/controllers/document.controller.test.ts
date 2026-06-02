@@ -1,7 +1,7 @@
 import { uploadDocument } from './document.controller';
-import { documentService } from '../services/document.service';
+import { documentIndexingService } from '../services/document-indexing.service';
 
-jest.mock('../services/document.service');
+jest.mock('../services/document-indexing.service');
 
 describe('Document Controller', () => {
   let mockReq: any;
@@ -30,18 +30,13 @@ describe('Document Controller', () => {
   it('should process document and return 200 on success', async () => {
     mockReq.file = { path: '/tmp/test.pdf', originalname: 'test.pdf' };
     
-    (documentService.processUpload as jest.Mock).mockResolvedValue({
-      documentId: 'doc123',
-      filename: 'test.pdf',
-      status: 'processed'
-    });
+    (documentIndexingService.ingestDocument as jest.Mock).mockResolvedValue(undefined);
 
     await uploadDocument(mockReq, mockRes, mockNext);
 
-    expect(documentService.processUpload).toHaveBeenCalledWith('/tmp/test.pdf', 'test.pdf');
+    expect(documentIndexingService.ingestDocument).toHaveBeenCalledWith('/tmp/test.pdf', 'test.pdf');
     expect(mockRes.status).toHaveBeenCalledWith(200);
     expect(mockRes.json).toHaveBeenCalledWith({
-      documentId: 'doc123',
       filename: 'test.pdf',
       status: 'processed'
     });
@@ -51,7 +46,7 @@ describe('Document Controller', () => {
     mockReq.file = { path: '/tmp/test.pdf', originalname: 'test.pdf' };
     
     const error = new Error('Parse failed');
-    (documentService.processUpload as jest.Mock).mockRejectedValue(error);
+    (documentIndexingService.ingestDocument as jest.Mock).mockRejectedValue(error);
 
     await uploadDocument(mockReq, mockRes, mockNext);
 
