@@ -15,7 +15,7 @@ services:
     name: chromadb
     env: image
     image:
-      url: docker.io/chromadb/chroma:latest
+      url: docker.io/chromadb/chroma:0.5.23
     envVars:
       - key: IS_PERSISTENT
         value: "FALSE"
