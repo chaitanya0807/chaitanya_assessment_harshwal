@@ -30,10 +30,20 @@ class ChromaService {
   private readonly COLLECTION_NAME = 'documents';
 
   constructor() {
-    // Ensure no trailing slashes which break the ChromaClient routes
-    const baseUrl = env.CHROMA_URL.replace(/\/+$/, '');
+    // Parse the CHROMA_URL to avoid the bug where ChromaClient path argument appends :0
+    const parsedUrl = new URL(env.CHROMA_URL.replace(/\/+$/, ''));
+    const isHttps = parsedUrl.protocol === 'https:';
+    
+    // Default ports based on protocol if not explicitly set
+    let portStr = parsedUrl.port;
+    if (!portStr) {
+      portStr = isHttps ? '443' : '80';
+    }
+
     this.client = new ChromaClient({
-      path: baseUrl,
+      host: parsedUrl.hostname,
+      port: parseInt(portStr, 10),
+      ssl: isHttps,
     });
   }
 
