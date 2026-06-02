@@ -67,9 +67,13 @@ class ChromaService {
   /**
    * Ensures the collection is loaded before performing operations.
    */
-  private ensureCollection(): Collection {
+  private async ensureCollection(): Promise<Collection> {
     if (!this.collection) {
-      throw new Error('Collection is not initialized. Call initialize() first.');
+      logger.info('Collection not initialized. Attempting to initialize now...');
+      await this.initialize();
+    }
+    if (!this.collection) {
+      throw new Error('Failed to initialize ChromaDB collection.');
     }
     return this.collection;
   }
@@ -78,7 +82,7 @@ class ChromaService {
    * Adds documents with their embeddings and metadata to the collection.
    */
   public async addDocuments(params: AddDocumentParams): Promise<void> {
-    const collection = this.ensureCollection();
+    const collection = await this.ensureCollection();
     try {
       // Cast metadata arrays since ChromaDB types expect generic Records
       await collection.add({
@@ -98,7 +102,7 @@ class ChromaService {
    * Queries documents based on embeddings or text.
    */
   public async queryDocuments(params: QueryParams) {
-    const collection = this.ensureCollection();
+    const collection = await this.ensureCollection();
     try {
       const results = await collection.query({
         queryEmbeddings: params.queryEmbeddings,
@@ -118,7 +122,7 @@ class ChromaService {
    * Deletes all document chunks associated with a specific documentId.
    */
   public async deleteDocument(documentId: string): Promise<void> {
-    const collection = this.ensureCollection();
+    const collection = await this.ensureCollection();
     try {
       await collection.delete({
         where: {
@@ -136,7 +140,7 @@ class ChromaService {
    * Lists the first N documents in the collection (useful for debugging).
    */
   public async listDocuments(limit: number = 10, offset: number = 0) {
-    const collection = this.ensureCollection();
+    const collection = await this.ensureCollection();
     try {
       const results = await collection.get({
         limit,
