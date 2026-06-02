@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: backend-api
+    env: node
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: node dist/server.js
+    envVars:
+      - key: CHROMA_URL
+        value: http://chromadb:8000
+      - key: GEMINI_API_KEY
+        sync: false
+
+  - type: pserv
+    name: chromadb
+    env: docker
+    image: chromadb/chroma:latest
+    disk:
+      name: chroma-data
+      mountPath: /chroma/chroma
+      sizeGB: 1
