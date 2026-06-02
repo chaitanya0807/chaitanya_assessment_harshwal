@@ -13,8 +13,9 @@ services:
 
   - type: pserv
     name: chromadb
-    env: docker
-    image: chromadb/chroma:latest
+    env: image
+    image:
+      url: docker.io/chromadb/chroma:latest
     disk:
       name: chroma-data
       mountPath: /chroma/chroma
