@@ -1,0 +1,11 @@
+<mat-toolbar color="primary">
+  <mat-icon style="margin-right: 8px;">library_books</mat-icon>
+  <span>{{ title }}</span>
+  <span style="flex: 1 1 auto;"></span>
+  <button mat-button routerLink="/upload" routerLinkActive="active-link">Upload Document</button>
+  <button mat-button routerLink="/chat" routerLinkActive="active-link">Ask Question</button>
+</mat-toolbar>
+
+<div class="content-container">
+  <router-outlet></router-outlet>
+</div>

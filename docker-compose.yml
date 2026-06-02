@@ -1,0 +1,31 @@
+version: '3.9'
+
+services:
+  chroma:
+    image: chromadb/chroma:latest
+    container_name: chromadb
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma-data:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - ALLOW_RESET=TRUE
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: qa-backend
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    volumes:
+      - backend-uploads:/app/uploads
+    depends_on:
+      - chroma
+
+volumes:
+  chroma-data:
+  backend-uploads:
