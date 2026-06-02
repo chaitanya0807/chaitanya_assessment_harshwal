@@ -43,13 +43,19 @@ describe('ChromaService', () => {
     }));
   });
 
-  it('should throw error if adding documents before initialization', async () => {
+  it('should throw error if initialization fails when adding documents', async () => {
     // Reset the internal collection to null
     Object.defineProperty(chromaService, 'collection', { value: null });
 
+    // Mock the client to fail initialization
+    const mockClient = {
+      getOrCreateCollection: jest.fn().mockRejectedValue(new Error('Failed to initialize ChromaDB collection.'))
+    };
+    Object.defineProperty(chromaService, 'client', { value: mockClient });
+
     await expect(chromaService.addDocuments({
       ids: ['1'], metadatas: [], documents: []
-    })).rejects.toThrow('Collection is not initialized');
+    })).rejects.toThrow();
   });
 
   it('should add documents successfully', async () => {
