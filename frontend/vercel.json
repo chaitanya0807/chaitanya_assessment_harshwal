@@ -6,7 +6,7 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "https://your-render-backend-url.onrender.com/api/$1"
+      "dest": "https://chaitanya-assessment-harshwal.onrender.com/api/$1"
     },
     {
       "handle": "filesystem"
