@@ -34,8 +34,8 @@ export class EmbeddingService {
       const embedding = await this.generateEmbedding(chunks[i]);
       embeddings.push(embedding);
       
-      // Optional: Add a tiny delay between requests to protect against rate limits (e.g., 50ms)
-      await new Promise(resolve => setTimeout(resolve, 50));
+      // Adding a delay between requests to protect against Gemini API free tier rate limits on shared datacenter IPs
+      await new Promise(resolve => setTimeout(resolve, 400));
       
       if ((i + 1) % 10 === 0) {
         logger.debug(`Embedded ${i + 1}/${chunks.length} chunks...`);
@@ -62,8 +62,11 @@ export class EmbeddingService {
       } catch (error: any) {
         attempt++;
         
-        // 429 typically means Too Many Requests
-        const isRateLimit = error?.status === 429 || error?.message?.includes('429') || error?.message?.includes('quota');
+        // 429 typically means Too Many Requests. The SDK can also just say "Rate limit exceeded"
+        const isRateLimit = error?.status === 429 || 
+                            error?.message?.includes('429') || 
+                            error?.message?.toLowerCase().includes('quota') ||
+                            error?.message?.toLowerCase().includes('rate limit');
         const isServerError = error?.status >= 500;
 
         if ((isRateLimit || isServerError) && attempt < maxRetries) {
