@@ -30,20 +30,11 @@ class ChromaService {
   private readonly COLLECTION_NAME = 'documents';
 
   constructor() {
-    // Parse the CHROMA_URL to avoid the bug where ChromaClient path argument appends :0
-    const parsedUrl = new URL(env.CHROMA_URL.replace(/\/+$/, ''));
-    const isHttps = parsedUrl.protocol === 'https:';
-    
-    // Default ports based on protocol if not explicitly set
-    let portStr = parsedUrl.port;
-    if (!portStr) {
-      portStr = isHttps ? '443' : '80';
-    }
+    // Parse the CHROMA_URL using the path parameter which is supported in 1.9.3
+    const baseUrl = env.CHROMA_URL.replace(/\/+$/, '');
 
     this.client = new ChromaClient({
-      host: parsedUrl.hostname,
-      port: parseInt(portStr, 10),
-      ssl: isHttps,
+      path: baseUrl,
     });
   }
 
@@ -116,13 +107,17 @@ class ChromaService {
   public async queryDocuments(params: QueryParams) {
     const collection = await this.ensureCollection();
     try {
-      const results = await collection.query({
-        queryEmbeddings: params.queryEmbeddings,
-        queryTexts: params.queryTexts,
+      // In chromadb 1.x, we must dynamically construct the payload since undefined causes type errors
+      const queryPayload: any = {
         nResults: params.nResults || 5,
         where: params.where,
-        include: [IncludeEnum.documents, IncludeEnum.metadatas, IncludeEnum.distances]
-      });
+        include: [IncludeEnum.Documents, IncludeEnum.Metadatas, IncludeEnum.Distances]
+      };
+      
+      if (params.queryEmbeddings) queryPayload.queryEmbeddings = params.queryEmbeddings;
+      if (params.queryTexts) queryPayload.queryTexts = params.queryTexts;
+
+      const results = await collection.query(queryPayload);
       return results;
     } catch (error) {
       logger.error('Error querying documents in ChromaDB:', error);
@@ -157,7 +152,7 @@ class ChromaService {
       const results = await collection.get({
         limit,
         offset,
-        include: [IncludeEnum.documents, IncludeEnum.metadatas]
+        include: [IncludeEnum.Documents, IncludeEnum.Metadatas]
       });
       return results;
     } catch (error) {
