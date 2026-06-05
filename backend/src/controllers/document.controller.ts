@@ -10,12 +10,14 @@ export const uploadDocument = async (req: Request, res: Response, next: NextFunc
 
     const { path: filePath, originalname } = req.file;
 
-    // Process the document, extract text, chunk, embed, and store in ChromaDB
-    await documentIndexingService.ingestDocument(filePath, originalname);
+    // Process the document asynchronously to prevent HTTP timeouts
+    documentIndexingService.ingestDocument(filePath, originalname).catch(error => {
+      logger.error('Background ingestion failed:', error);
+    });
 
-    return res.status(200).json({
+    return res.status(202).json({
       filename: originalname,
-      status: 'processed'
+      status: 'processing'
     });
   } catch (error) {
     logger.error('Error in uploadDocument controller:', error);

@@ -28,8 +28,8 @@ export class EmbeddingService {
     const embeddings: number[][] = [];
     logger.info(`Generating embeddings for ${chunks.length} chunks...`);
 
-    // Gemini's batchEmbedContents supports up to 100 chunks per request
-    const batchSize = 100;
+    // Gemini's free tier has strict rate limits. We use 50 chunks per request to stay safely below the 100/min quota limit while batching.
+    const batchSize = 50;
     
     for (let i = 0; i < chunks.length; i += batchSize) {
       const batchChunks = chunks.slice(i, i + batchSize);
@@ -65,7 +65,7 @@ export class EmbeddingService {
    */
   private async withRetry<T>(
     operation: () => Promise<T>,
-    maxRetries: number = 5,
+    maxRetries: number = 20,
     baseDelayMs: number = 1000
   ): Promise<T> {
     let attempt = 0;
@@ -86,8 +86,16 @@ export class EmbeddingService {
         const isNetworkError = error?.message?.toLowerCase().includes('fetch failed') || error?.code === 'ECONNRESET';
 
         if ((isRateLimit || isServerError || isNetworkError) && attempt < maxRetries) {
-          // Exponential backoff: 1s, 2s, 4s, 8s, 16s... + jitter
-          const delay = baseDelayMs * Math.pow(2, attempt - 1) + Math.random() * 500;
+          // Check if Google explicitly told us how long to wait
+          let delay = baseDelayMs * Math.pow(2, attempt - 1) + Math.random() * 500; // Default exponential backoff
+          
+          const retryMatch = error?.message?.match(/Please retry in (\d+\.?\d*)s/);
+          if (retryMatch && retryMatch[1]) {
+            const requestedSeconds = parseFloat(retryMatch[1]);
+            // Wait the requested time plus a 2 second buffer
+            delay = (requestedSeconds + 2) * 1000;
+            logger.warn(`Google explicitly requested a retry delay of ${requestedSeconds}s.`);
+          }
           
           logger.warn(`Embedding API rate limited or server error. Retrying attempt ${attempt}/${maxRetries} in ${Math.round(delay)}ms...`);
           await new Promise(resolve => setTimeout(resolve, delay));
