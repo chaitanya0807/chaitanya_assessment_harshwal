@@ -22,24 +22,38 @@ export class EmbeddingService {
   }
 
   /**
-   * Generates embeddings for a batch of text chunks, processing sequentially to avoid rate limits.
+   * Generates embeddings for a batch of text chunks, processing in batches of 100 (Gemini API limit)
    */
   public async generateBatchEmbeddings(chunks: string[]): Promise<number[][]> {
     const embeddings: number[][] = [];
     logger.info(`Generating embeddings for ${chunks.length} chunks...`);
 
-    // In production with strict rate limits, processing sequentially or in small batches is safer.
-    // Given the generative AI SDK, we embed content one by one.
-    for (let i = 0; i < chunks.length; i++) {
-      const embedding = await this.generateEmbedding(chunks[i]);
-      embeddings.push(embedding);
+    // Gemini's batchEmbedContents supports up to 100 chunks per request
+    const batchSize = 100;
+    
+    for (let i = 0; i < chunks.length; i += batchSize) {
+      const batchChunks = chunks.slice(i, i + batchSize);
       
-      // Adding a delay between requests to protect against Gemini API free tier rate limits on shared datacenter IPs
-      await new Promise(resolve => setTimeout(resolve, 400));
+      await this.withRetry(async () => {
+        const model = this.genAI.getGenerativeModel({ model: this.modelName });
+        
+        const requests = batchChunks.map(chunk => ({
+          content: { role: 'user', parts: [{ text: chunk }] }
+        }));
+        
+        const result = await model.batchEmbedContents({ requests });
+        
+        for (const embedding of result.embeddings) {
+          embeddings.push(embedding.values);
+        }
+      });
       
-      if ((i + 1) % 10 === 0) {
-        logger.debug(`Embedded ${i + 1}/${chunks.length} chunks...`);
+      // Adding a conservative delay between batch requests to protect against free tier rate limits
+      if (i + batchSize < chunks.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
+      
+      logger.debug(`Embedded ${Math.min(i + batchSize, chunks.length)}/${chunks.length} chunks...`);
     }
 
     logger.info(`Successfully generated ${embeddings.length} embeddings.`);
@@ -68,8 +82,10 @@ export class EmbeddingService {
                             error?.message?.toLowerCase().includes('quota') ||
                             error?.message?.toLowerCase().includes('rate limit');
         const isServerError = error?.status >= 500;
+        // Network errors like "fetch failed" from Undici should also be retried
+        const isNetworkError = error?.message?.toLowerCase().includes('fetch failed') || error?.code === 'ECONNRESET';
 
-        if ((isRateLimit || isServerError) && attempt < maxRetries) {
+        if ((isRateLimit || isServerError || isNetworkError) && attempt < maxRetries) {
           // Exponential backoff: 1s, 2s, 4s, 8s, 16s... + jitter
           const delay = baseDelayMs * Math.pow(2, attempt - 1) + Math.random() * 500;
           
